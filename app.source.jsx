@@ -6,10 +6,11 @@ const { useState, useEffect, useRef } = React;
 const STORE_KEY = 'nvp_ops_demo_v1';
 const ROLES = { teknisi: 'Teknisi', manager: 'Manager Operasional', direktur: 'Direktur' };
 const USERS = [
-  { id: 't1', name: 'Budi Santoso', role: 'teknisi' },
-  { id: 't2', name: 'Joko Prasetyo', role: 'teknisi' },
-  { id: 'm1', name: 'Rina Marlina', role: 'manager' },
-  { id: 'd1', name: 'Bapak Direktur', role: 'direktur' },
+  // Contoh akun. Versi asli: dibuat admin di portal viopran.com (menu Pengguna).
+  { id: 't1', name: 'Budi Santoso', role: 'teknisi', username: 'budi', password: 'teknisi123' },
+  { id: 't2', name: 'Joko Prasetyo', role: 'teknisi', username: 'joko', password: 'teknisi123' },
+  { id: 'm1', name: 'Rina Marlina', role: 'manager', username: 'rina', password: 'manager123' },
+  { id: 'd1', name: 'Bapak Direktur', role: 'direktur', username: 'direktur', password: 'direktur123' },
 ];
 // Daftar type & berat APAR (bisa disesuaikan dengan produk yang dijual)
 const TYPE_APAR = ['Powder (Dry Chemical ABC)', 'CO2 (Karbon Dioksida)', 'Foam AFFF', 'Clean Agent / Liquid Gas (HCFC-123)', 'Air (Water Mist)', 'Wet Chemical (Kelas K)'];
@@ -119,7 +120,7 @@ function seedState() {
   return {
     tugas, pekerjaan, aju, kasKeluar, notifs: [],
     seq: { TP: { [y]: 3 }, PKJ: { [y]: 2 }, PGJ: { [y]: 4 }, KK: 1 },
-    settings: { userId: null, notifRoles: ['direktur'] },
+    settings: { userId: null },
   };
 }
 function loadState() {
@@ -266,13 +267,10 @@ function App() {
     setSt(prev => {
       const d = JSON.parse(JSON.stringify(prev));
       const n = fn(d) || [];
-      const baru = n.map(x => ({ id: uid(), t: nowIso(), read: false, ...x }));
+      const baru = n.map(x => ({ id: uid(), t: nowIso(), read: false, dari: me ? me.id : null, ...x }));
       d.notifs = [...baru, ...(d.notifs || [])].slice(0, 200);
-      baru.forEach(x => {
-        const untukPerangkat = d.settings.notifRoles.includes(x.toRole);
-        const bukanDiriSendiri = !me || me.role !== x.toRole;
-        if (untukPerangkat && bukanDiriSendiri) systemNotify(x.title, x.body, x.link);
-      });
+      // Notifikasi HP hanya untuk akun yang sedang masuk di HP ini (versi asli: dikirim server ke HP penerima)
+      baru.forEach(x => { if (me && x.toRole === me.role && (!x.toUser || x.toUser === me.id) && x.dari !== me.id) systemNotify(x.title, x.body, x.link); });
       return d;
     });
     if (pesan) setToast(pesan);
@@ -348,7 +346,16 @@ function App() {
     ubah(() => [{ toRole: 'direktur', title: `Pengingat: ${tunggu.length} pengajuan menunggu pembayaran`, body: `Total ${fmt(sum(tunggu, a => a.total))} — mohon segera ditindaklanjuti (dari ${me.name})`, link: 'aju/' + tunggu[0].id }], 'Pengingat dikirim ke HP Direktur');
   };
 
-  if (!me) return <PilihPengguna onPick={(id) => setSt(s => ({ ...s, settings: { ...s.settings, userId: id } }))} />;
+  const masuk = (u) => {
+    setSt(s => ({ ...s, settings: { ...s.settings, userId: u.id } }));
+    setView({ name: 'home' });
+    // Saat masuk, notifikasi yang belum dibaca untuk akun ini ikut muncul di HP
+    const belum = (st.notifs || []).filter(n => !n.read && n.toRole === u.role && (!n.toUser || n.toUser === u.id));
+    if (belum.length === 1) systemNotify(belum[0].title, belum[0].body, belum[0].link);
+    else if (belum.length > 1) systemNotify(`${belum.length} notifikasi baru`, belum.slice(0, 3).map(n => n.title).join(' · '), '');
+  };
+  const keluar = () => { setSt(s => ({ ...s, settings: { ...s.settings, userId: null } })); setView({ name: 'home' }); if (location.hash) history.replaceState(null, '', location.pathname); };
+  if (!me) return <Login onMasuk={masuk} />;
   if (laporan) return <Laporan doc={laporan} st={st} onTutup={() => setLaporan(null)} />;
 
   const notifSaya = (st.notifs || []).filter(n => n.toRole === me.role && (!n.toUser || n.toUser === me.id));
@@ -376,8 +383,7 @@ function App() {
   else if (v === 'arsip') body = <Arsip ctx={ctx} />;
   else if (v === 'notif') body = <Notifikasi list={notifSaya} buka={(n) => { setSt(s => ({ ...s, notifs: s.notifs.map(x => x.id === n.id ? { ...x, read: true } : x) })); const m = /^(tugas|aju|pekerjaan)\/(.+)$/.exec(n.link || ''); if (m) go(m[1], { id: m[2] }); }}
     bacaSemua={() => setSt(s => ({ ...s, notifs: s.notifs.map(x => (x.toRole === me.role && (!x.toUser || x.toUser === me.id)) ? { ...x, read: true } : x) }))} />;
-  else if (v === 'profil') body = <Profil ctx={ctx} ganti={(id) => { setSt(s => ({ ...s, settings: { ...s.settings, userId: id } })); go('home'); }}
-    setNotifRoles={(r) => setSt(s => ({ ...s, settings: { ...s.settings, notifRoles: r } }))}
+  else if (v === 'profil') body = <Profil ctx={ctx} keluar={keluar}
     tesNotif={async () => { const ok = await systemNotify('Contoh notifikasi', 'Pengajuan gaji Budi Santoso menunggu pembayaran · Rp4.690.000', ''); setToast(ok ? 'Notifikasi dikirim ke perangkat ini' : 'Izinkan notifikasi dulu'); }}
     reset={() => { const s = seedState(); s.settings = { ...st.settings }; setSt(s); go('home'); setToast('Data contoh dikembalikan'); }} />;
   else body = me.role === 'teknisi' ? <BerandaTeknisi ctx={ctx} /> : me.role === 'manager' ? <BerandaManager ctx={ctx} /> : <BerandaDirektur ctx={ctx} />;
@@ -430,25 +436,38 @@ function App() {
 }
 
 // ================================================================== pilih akun (demo)
-function PilihPengguna({ onPick }) {
+function Login({ onMasuk }) {
+  const [f, setF] = useState({ username: '', password: '' });
+  const [err, setErr] = useState('');
+  const [lihat, setLihat] = useState(false);
+  const [contoh, setContoh] = useState(false);
+  const kirim = (e) => {
+    e.preventDefault();
+    const u = USERS.find(x => x.username === f.username.trim().toLowerCase() && x.password === f.password);
+    if (!u) { setErr('Username atau password salah.'); return; }
+    setErr(''); onMasuk(u);
+  };
+  const fi = 'w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-red-500';
   return (
     <div className="min-h-screen bg-ink text-white flex flex-col">
       <div className="hazard h-1.5"></div>
-      <div className="flex-1 max-w-lg w-full mx-auto px-5 py-10">
+      <div className="flex-1 max-w-sm w-full mx-auto px-5 py-12">
         <img src="icons/icon-192.png" alt="" className="w-16 h-16 rounded-2xl" />
         <h1 className="text-3xl font-black mt-5 leading-tight">NVP Operasional</h1>
-        <p className="text-slate-300 mt-2 text-sm leading-relaxed">Contoh aplikasi operasional & alur kas PT Nuri Vira Pratama: pekerjaan refilling/pengadaan, tugas pemeriksaan APAR, pengajuan gaji & pembayaran. Data hanya contoh dan tersimpan di perangkat ini.</p>
-        <p className="mt-8 text-xs font-bold uppercase tracking-widest text-red-300">Masuk sebagai</p>
-        <div className="mt-3 space-y-2.5">
-          {USERS.map(u => (
-            <button key={u.id} onClick={() => onPick(u.id)} className="w-full flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-3.5 text-left">
-              <span className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center font-black">{u.name[0]}</span>
-              <span className="flex-1"><span className="block font-bold">{u.name}</span><span className="block text-xs text-slate-400">{ROLES[u.role]}</span></span>
-              <Ico d={I.back} className="rotate-180 text-slate-500" />
-            </button>
-          ))}
+        <p className="text-slate-400 mt-1 text-sm">PT Nuri Vira Pratama · Viopran Fire Extinguisher</p>
+        <form onSubmit={kirim} className="mt-8 space-y-3">
+          <label className="block"><span className="text-xs font-bold text-slate-300">Username</span><input autoComplete="username" autoCapitalize="none" value={f.username} onChange={(e) => setF({ ...f, username: e.target.value })} className={fi + ' mt-1'} /></label>
+          <label className="block"><span className="text-xs font-bold text-slate-300">Password</span>
+            <div className="relative mt-1"><input type={lihat ? 'text' : 'password'} autoComplete="current-password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} className={fi + ' pr-16'} />
+              <button type="button" onClick={() => setLihat(!lihat)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">{lihat ? 'Sembunyi' : 'Lihat'}</button></div></label>
+          {err && <p className="text-sm text-rose-300 font-semibold">{err}</p>}
+          <button type="submit" className="w-full py-3.5 rounded-xl bg-red-600 font-black">Masuk</button>
+        </form>
+        <p className="mt-4 text-xs text-slate-500">Akun dibuat oleh admin di portal viopran.com. Lupa password? Hubungi admin.</p>
+        <div className="mt-8 border-t border-white/10 pt-4">
+          <button onClick={() => setContoh(!contoh)} className="text-xs font-bold text-slate-400 underline">{contoh ? 'Sembunyikan' : 'Lihat'} akun contoh untuk mencoba</button>
+          {contoh && <table className="mt-3 w-full text-xs text-slate-300"><tbody>{USERS.map(u => <tr key={u.id} className="border-b border-white/5"><td className="py-1.5">{ROLES[u.role]}</td><td className="font-mono">{u.username}</td><td className="font-mono text-right">{u.password}</td></tr>)}</tbody></table>}
         </div>
-        <p className="mt-6 text-xs text-slate-500">Di versi asli, akun dibuat oleh admin di portal viopran.com (menu Pengguna) dengan peran Teknisi, Manager Operasional, atau Direktur.</p>
       </div>
     </div>
   );
@@ -1105,35 +1124,23 @@ function Notifikasi({ list, buka, bacaSemua }) {
   );
 }
 
-function Profil({ ctx, ganti, setNotifRoles, tesNotif, reset }) {
+function Profil({ ctx, keluar, tesNotif, reset }) {
   const { st, me, perm } = ctx;
-  const roles = st.settings.notifRoles;
   const iOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const standalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-black">Akun & pengaturan</h2>
-      <Seksi judul="Ganti akun (khusus contoh)">
-        <div className="space-y-2">{USERS.map(u => (
-          <button key={u.id} onClick={() => ganti(u.id)} className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left ${u.id === me.id ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}>
-            <span className="w-9 h-9 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-sm">{u.name[0]}</span>
-            <span className="flex-1"><b className="block text-sm">{u.name}</b><span className="text-xs text-slate-500">{ROLES[u.role]}</span></span>
-            {u.id === me.id && <Ico d={I.check} className="text-red-600" />}
-          </button>
-        ))}</div>
-        <p className="text-[11px] text-slate-500 mt-2">Versi asli: akun dibuat admin di portal viopran.com, setiap orang masuk dengan username & password sendiri.</p>
-      </Seksi>
+      <section className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
+        <span className="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center font-black text-lg">{me.name[0]}</span>
+        <div className="flex-1 min-w-0"><div className="font-black truncate">{me.name}</div><div className="text-xs text-slate-500">{ROLES[me.role]} · <span className="font-mono">{me.username}</span></div></div>
+      </section>
+      <button onClick={() => { if (confirm('Keluar dari akun ini?')) keluar(); }} className="w-full py-3 rounded-2xl border border-rose-300 text-rose-700 font-bold text-sm">Keluar</button>
       <Seksi judul="Notifikasi HP">
         <div className="space-y-3 text-sm">
           <div className="flex items-center justify-between gap-3"><span>Izin notifikasi: <b>{perm === 'granted' ? 'aktif' : perm === 'denied' ? 'diblokir' : perm === 'unsupported' ? 'tidak didukung' : 'belum diizinkan'}</b></span>{perm === 'default' && <button onClick={ctx.mintaIzin} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold">Izinkan</button>}</div>
           {perm === 'denied' && <p className="text-xs text-rose-600">Notifikasi diblokir. Buka pengaturan browser/aplikasi untuk mengizinkannya lagi.</p>}
-          <div>
-            <div className="text-xs font-bold text-slate-600 mb-1.5">HP ini milik (menerima notifikasi untuk):</div>
-            <div className="space-y-1.5">{Object.keys(ROLES).map(r => (
-              <label key={r} className="flex items-center gap-2 bg-slate-50 rounded-lg px-2.5 py-2"><input type="checkbox" className="w-4 h-4 accent-red-600" checked={roles.includes(r)} onChange={(e) => setNotifRoles(e.target.checked ? [...roles, r] : roles.filter(x => x !== r))} /><span className="text-xs font-semibold">{ROLES[r]}</span></label>
-            ))}</div>
-            <p className="text-[11px] text-slate-500 mt-1.5">Contoh: di HP pemilik centang Direktur saja. Saat Anda (sebagai Manager) menekan “Ingatkan Direktur”, HP ini berbunyi.</p>
-          </div>
+          <p className="text-[11px] text-slate-500">HP ini menerima notifikasi untuk akun {me.name} ({ROLES[me.role]}). Di contoh ini notifikasi dari akun lain muncul saat Anda masuk; versi asli langsung berbunyi lewat server.</p>
           <button onClick={tesNotif} className={btnGaris}>Kirim notifikasi uji</button>
         </div>
       </Seksi>
