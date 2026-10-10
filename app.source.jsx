@@ -84,6 +84,112 @@ function resizeImage(file, max = 900) {
   });
 }
 
+// ================================================================== kamera + watermark dokumentasi
+const waktuSekarang = () => new Date().toLocaleString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' });
+// Gambar dari kamera diberi pita watermark: konsumen, teknisi, hari/tanggal/jam. Teks dibakar ke gambar (tidak bisa dihapus).
+function bubuhkanWatermark(sumber, w, h, info) {
+  const max = 1280, s = Math.min(1, max / Math.max(w, h));
+  const W = Math.round(w * s), H = Math.round(h * s);
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.drawImage(sumber, 0, 0, W, H);
+  const fs = Math.max(13, Math.round(Math.min(W, H * 1.4) / 30)), lh = Math.round(fs * 1.38), pad = Math.round(fs * 0.75), judul = Math.round(fs * 0.72);
+  const baris = [['Konsumen', info.konsumen], ['Teknisi', info.teknisi], ['Waktu', info.waktu]];
+  if (info.keterangan) baris.push(['Ket.', info.keterangan]);
+  const tinggi = pad * 2 + judul + Math.round(fs * 0.45) + lh * baris.length;
+  g.fillStyle = 'rgba(0,0,0,0.58)'; g.fillRect(0, H - tinggi, W, tinggi);
+  g.fillStyle = '#dc2626'; g.fillRect(0, H - tinggi, Math.max(4, Math.round(fs * 0.3)), tinggi);
+  g.textBaseline = 'top';
+  let y = H - tinggi + pad; const x = pad * 1.6, lebar = W - x - pad;
+  g.font = `700 ${judul}px system-ui, -apple-system, Roboto, sans-serif`; g.fillStyle = '#fca5a5';
+  g.fillText('PT NURI VIRA PRATAMA · VIOPRAN', x, y, lebar); y += judul + Math.round(fs * 0.45);
+  baris.forEach(([k, v]) => { g.font = `600 ${fs}px system-ui, -apple-system, Roboto, sans-serif`; g.fillStyle = '#ffffff'; g.fillText(`${k}: ${v || '-'}`, x, y, lebar); y += lh; });
+  return c.toDataURL('image/jpeg', 0.68);
+}
+function muatGambar(file) {
+  return new Promise((resolve, reject) => { const r = new FileReader(); r.onerror = reject; r.onload = () => { const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = r.result; }; r.readAsDataURL(file); });
+}
+
+function Kamera({ info, onPakai, onTutup }) {
+  const vid = useRef(null), stream = useRef(null), cadangan = useRef(null);
+  const [arah, setArah] = useState('environment');
+  const [siap, setSiap] = useState(false);
+  const [gagal, setGagal] = useState('');
+  const [hasil, setHasil] = useState(null);
+  useEffect(() => {
+    let batal = false;
+    setSiap(false);
+    (async () => {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('tidak didukung');
+        const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: arah }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+        if (batal) { s.getTracks().forEach(t => t.stop()); return; }
+        stream.current = s; vid.current.srcObject = s; await vid.current.play(); setSiap(true); setGagal('');
+      } catch (e) { setGagal('Kamera tidak bisa dibuka langsung di sini. Ketuk "Buka kamera HP" — foto tetap diberi watermark.'); }
+    })();
+    return () => { batal = true; if (stream.current) stream.current.getTracks().forEach(t => t.stop()); stream.current = null; };
+  }, [arah]);
+  const jepret = () => { const v = vid.current; if (!v || !v.videoWidth) return; setHasil({ dataUrl: bubuhkanWatermark(v, v.videoWidth, v.videoHeight, { ...info, waktu: waktuSekarang() }), waktu: nowIso() }); };
+  const dariKameraHP = async (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return; try { const img = await muatGambar(f); setHasil({ dataUrl: bubuhkanWatermark(img, img.naturalWidth, img.naturalHeight, { ...info, waktu: waktuSekarang() }), waktu: nowIso() }); } catch (err) { setGagal('Foto tidak bisa dibaca.'); } };
+  return (
+    <div className="fixed inset-0 z-50 bg-black text-white flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="flex items-center justify-between px-4 h-12 shrink-0">
+        <button onClick={onTutup} className="text-sm font-bold">Batal</button>
+        <span className="text-xs font-bold text-slate-300">Kamera dokumentasi</span>
+        {!hasil && siap ? <button onClick={() => setArah(arah === 'environment' ? 'user' : 'environment')} className="text-sm font-bold">Balik</button> : <span className="w-10"></span>}
+      </div>
+      <div className="relative flex-1 min-h-0 bg-black">
+        {hasil ? <img src={hasil.dataUrl} alt="Hasil foto" className="absolute inset-0 w-full h-full object-contain" /> : (
+          <>
+            <video ref={vid} playsInline muted className="absolute inset-0 w-full h-full object-contain"></video>
+            {siap && <div className="absolute left-0 right-0 bottom-0 bg-black/55 border-l-4 border-red-600 px-3 py-2 text-[12px] leading-snug pointer-events-none">
+              <div className="text-[10px] font-bold text-red-300">PT NURI VIRA PRATAMA · VIOPRAN</div>
+              <div>Konsumen: {info.konsumen}</div><div>Teknisi: {info.teknisi}</div><div>Waktu: tercatat saat foto diambil</div>
+            </div>}
+            {gagal && <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-slate-300">{gagal}</div>}
+          </>
+        )}
+      </div>
+      <div className="shrink-0 px-4 py-4 flex items-center justify-center gap-4">
+        {hasil ? (
+          <>
+            <button onClick={() => setHasil(null)} className="flex-1 py-3 rounded-2xl border border-white/30 font-bold">Ulangi</button>
+            <button onClick={() => onPakai(hasil)} className="flex-1 py-3 rounded-2xl bg-red-600 font-black">Pakai foto</button>
+          </>
+        ) : siap ? (
+          <button aria-label="Ambil foto" onClick={jepret} className="w-[72px] h-[72px] rounded-full border-4 border-white flex items-center justify-center"><span className="w-[56px] h-[56px] rounded-full bg-white"></span></button>
+        ) : gagal ? (
+          <button onClick={() => cadangan.current && cadangan.current.click()} className="w-full py-3 rounded-2xl bg-red-600 font-black">Buka kamera HP</button>
+        ) : <span className="text-sm text-slate-400">Membuka kamera…</span>}
+      </div>
+      <input ref={cadangan} type="file" accept="image/*" capture="environment" className="hidden" onChange={dariKameraHP} />
+    </div>
+  );
+}
+
+// Foto dokumentasi: hanya dari kamera, otomatis ber-watermark
+function FotoKamera({ label, list, setList, max = 6, info, syarat }) {
+  const [buka, setBuka] = useState(false);
+  const [pesan, setPesan] = useState('');
+  const mulai = () => { if (syarat) { setPesan(syarat); return; } setPesan(''); setBuka(true); };
+  return (
+    <div>
+      <div className="text-xs font-bold text-slate-600 mb-1.5">{label} <span className="font-medium text-slate-400">(kamera, maks. {max} foto, ber-watermark)</span></div>
+      <div className="grid grid-cols-3 gap-2">
+        {list.map((a, i) => (
+          <div key={i} className="relative aspect-[4/3] rounded-xl overflow-hidden border border-slate-200 bg-slate-900">
+            <img src={a.dataUrl} alt={a.name} className="w-full h-full object-cover" />
+            <button type="button" aria-label="Hapus foto" onClick={() => setList(list.filter((_, j) => j !== i))} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"><Ico d={I.x} size={14} /></button>
+          </div>
+        ))}
+        {list.length < max && <button type="button" onClick={mulai} className="aspect-[4/3] rounded-xl border-2 border-dashed border-red-300 text-red-600 flex flex-col items-center justify-center text-[11px] font-bold bg-red-50/40"><Ico d={I.cam} />Ambil foto</button>}
+      </div>
+      {pesan && <p className="text-xs text-rose-600 font-semibold mt-1.5">{pesan}</p>}
+      {buka && <Kamera info={info} onTutup={() => setBuka(false)} onPakai={(h) => { setList([...list, { name: `dok-${h.waktu.replace(/[:.]/g, '-')}.jpg`, dataUrl: h.dataUrl, waktu: h.waktu }].slice(0, max)); setBuka(false); }} />}
+    </div>
+  );
+}
+
 // ================================================================== data contoh
 function seedState() {
   const t = todayStr(), y = t.slice(0, 4);
@@ -440,7 +546,6 @@ function Login({ onMasuk }) {
   const [f, setF] = useState({ username: '', password: '' });
   const [err, setErr] = useState('');
   const [lihat, setLihat] = useState(false);
-  const [contoh, setContoh] = useState(false);
   const kirim = (e) => {
     e.preventDefault();
     const u = USERS.find(x => x.username === f.username.trim().toLowerCase() && x.password === f.password);
@@ -464,10 +569,7 @@ function Login({ onMasuk }) {
           <button type="submit" className="w-full py-3.5 rounded-xl bg-red-600 font-black">Masuk</button>
         </form>
         <p className="mt-4 text-xs text-slate-500">Akun dibuat oleh admin di portal viopran.com. Lupa password? Hubungi admin.</p>
-        <div className="mt-8 border-t border-white/10 pt-4">
-          <button onClick={() => setContoh(!contoh)} className="text-xs font-bold text-slate-400 underline">{contoh ? 'Sembunyikan' : 'Lihat'} akun contoh untuk mencoba</button>
-          {contoh && <table className="mt-3 w-full text-xs text-slate-300"><tbody>{USERS.map(u => <tr key={u.id} className="border-b border-white/5"><td className="py-1.5">{ROLES[u.role]}</td><td className="font-mono">{u.username}</td><td className="font-mono text-right">{u.password}</td></tr>)}</tbody></table>}
-        </div>
+
       </div>
     </div>
   );
@@ -703,7 +805,7 @@ function DetailTugas({ ctx, id }) {
   const lay = t.units.filter(unitLayak).length;
   const sayaTeknisi = me.role === 'teknisi' && t.teknisiIds.includes(me.id);
   const bisaIsi = sayaTeknisi && t.status === 'dikerjakan';
-  if (edit !== null) return <FormUnit t={t} idx={edit} onBatal={() => setEdit(null)} onSimpan={(u, lanjut) => { ctx.simpanUnit(t.id, edit, u); const nx = lanjut ? t.units.findIndex((x, i) => i > edit && !unitTerisi(x)) : -1; setEdit(nx >= 0 ? nx : null); if (nx < 0) window.scrollTo(0, 0); }} />;
+  if (edit !== null) return <FormUnit t={t} idx={edit} me={me} onBatal={() => setEdit(null)} onSimpan={(u, lanjut) => { ctx.simpanUnit(t.id, edit, u); const nx = lanjut ? t.units.findIndex((x, i) => i > edit && !unitTerisi(x)) : -1; setEdit(nx >= 0 ? nx : null); if (nx < 0) window.scrollTo(0, 0); }} />;
   return (
     <div className="space-y-4">
       <Kembali onClick={() => go('tugas')} />
@@ -743,7 +845,7 @@ function DetailTugas({ ctx, id }) {
   );
 }
 
-function FormUnit({ t, idx, onBatal, onSimpan }) {
+function FormUnit({ t, idx, me, onBatal, onSimpan }) {
   const [u, setU] = useState(() => ({ ...t.units[idx], foto: t.units[idx].foto || [] }));
   const set = (k, v) => setU(p => ({ ...p, [k]: v }));
   const ok = unitTerisi(u);
@@ -770,7 +872,7 @@ function FormUnit({ t, idx, onBatal, onSimpan }) {
           <div><div className="text-xs font-bold text-slate-600 mb-1.5">Handle / tuas</div><Segmen label="Handle" value={u.handle} options={OPSI.handle} onChange={(v) => set('handle', v)} /></div>
           <div><div className="text-xs font-bold text-slate-600 mb-1.5">Pin pengaman & segel</div><Segmen label="Pin" value={u.pin} options={OPSI.pin} onChange={(v) => set('pin', v)} /></div>
           <Lab t="Keterangan" hint="opsional"><input value={u.ket} onChange={(e) => set('ket', e.target.value)} placeholder="mis. Perlu isi ulang, label pudar" className={inp} /></Lab>
-          <FotoInput label="Foto APAR" list={u.foto} setList={(l) => set('foto', l)} max={2} />
+          <FotoKamera label="Foto APAR" list={u.foto} setList={(l) => set('foto', l)} max={2} info={{ konsumen: t.tempat, teknisi: me ? me.name : '-', keterangan: `APAR no. ${u.no}${u.lokasi ? ' · ' + u.lokasi : ''}` }} />
         </div>
       </Seksi>
       {ok && <div className={`rounded-2xl p-3 text-sm font-bold text-center ${unitLayak(u) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>Hasil: {unitLayak(u) ? 'LAYAK' : 'TIDAK LAYAK'}</div>}
@@ -812,7 +914,7 @@ function FormPekerjaan({ ctx }) {
         </div>
       </Seksi>
       <Seksi judul="APAR"><BarisApar rows={rows} setRows={setRows} /></Seksi>
-      <Seksi judul="Dokumentasi"><FotoInput label="Foto pengerjaan" list={foto} setList={setFoto} max={6} /></Seksi>
+      <Seksi judul="Dokumentasi"><FotoKamera label="Foto pengerjaan" list={foto} setList={setFoto} max={6} info={{ konsumen: f.konsumen.trim(), teknisi: ctx.me.name, keterangan: `${f.jenis} APAR` }} syarat={f.konsumen.trim() ? '' : 'Isi nama perusahaan / konsumen dulu — dipakai untuk watermark foto.'} /></Seksi>
       {err && <p className="text-sm text-rose-600 font-semibold bg-rose-50 border border-rose-200 rounded-xl p-3">{err}</p>}
       <button onClick={kirim} className={btnUtama}><Ico d={I.send} /> Simpan pekerjaan</button>
     </div>
@@ -846,7 +948,7 @@ function DetailPekerjaan({ ctx, id }) {
       {p.taskId && <button onClick={() => go('tugas', { id: p.taskId })} className={btnGaris}>Buka tugas {p.taskId}</button>}
       <Seksi judul="APAR"><table className="w-full text-sm"><tbody>{p.rows.map((r, i) => <tr key={i} className="border-b border-slate-100 last:border-0"><td className="py-2">{r.type}<div className="text-[11px] text-slate-400">{r.berat}</div></td><td className="py-2 text-right font-black">{r.jumlah} unit</td></tr>)}</tbody></table></Seksi>
       <Seksi judul="Dokumentasi" aksi={<button onClick={() => ctx.setLaporan({ jenis: 'pekerjaan', id: p.id })} className="text-xs font-bold text-red-600">Pratinjau PDF</button>}>
-        {p.foto.length ? <div className="grid grid-cols-3 gap-2">{p.foto.map((a, i) => <img key={i} src={a.dataUrl} alt={a.name} className="aspect-square object-cover rounded-xl border border-slate-200" />)}</div> : <p className="text-sm text-slate-400">Tidak ada foto (data contoh).</p>}
+        {p.foto.length ? <div className="grid grid-cols-2 gap-2">{p.foto.map((a, i) => <a key={i} href={a.dataUrl} target="_blank" rel="noopener"><img src={a.dataUrl} alt={a.name} className="w-full aspect-[4/3] object-contain bg-slate-900 rounded-xl border border-slate-200" /></a>)}</div> : <p className="text-sm text-slate-400">Tidak ada foto (data contoh).</p>}
       </Seksi>
     </div>
   );
@@ -1072,7 +1174,7 @@ function Laporan({ doc, st, onTutup }) {
           ))}</tbody>
         </table></div>
         <p className="text-[9px] text-slate-500 mt-1.5">Kriteria layak: tekanan normal, masa berlaku isi belum lewat, selang/horn tidak retak, handle baik, pin pengaman & segel ada.</p>
-        {foto.length > 0 && <><div className="font-black text-[11px] mt-4 mb-2">Dokumentasi</div><div className="grid grid-cols-4 gap-2">{foto.map((f, i) => <figure key={i} className="avoid-break"><img src={f.dataUrl} alt="" className="w-full aspect-square object-cover border" /><figcaption className="text-[9px] text-center">APAR no. {f.no}</figcaption></figure>)}</div></>}
+        {foto.length > 0 && <><div className="font-black text-[11px] mt-4 mb-2">Dokumentasi</div><div className="grid grid-cols-3 gap-2">{foto.map((f, i) => <figure key={i} className="avoid-break"><img src={f.dataUrl} alt="" className="w-full h-auto border" /><figcaption className="text-[9px] text-center">APAR no. {f.no}</figcaption></figure>)}</div></>}
       </>
     );
   } else {
@@ -1090,7 +1192,7 @@ function Laporan({ doc, st, onTutup }) {
           <tbody>{p.rows.map((r, i) => <tr key={i}><td className="border border-slate-300 px-2 py-1">{i + 1}</td><td className="border border-slate-300 px-2">{r.type}</td><td className="border border-slate-300 px-2">{r.berat}</td><td className="border border-slate-300 px-2">{r.jumlah} unit</td></tr>)}
             <tr className="font-bold"><td colSpan="3" className="border border-slate-300 px-2 py-1 text-right">Total</td><td className="border border-slate-300 px-2">{sum(p.rows, r => r.jumlah)} unit</td></tr></tbody></table>
         <div className="font-black text-[11px] mt-4 mb-2">Foto pengerjaan</div>
-        {p.foto.length ? <div className="grid grid-cols-3 gap-2">{p.foto.map((f, i) => <img key={i} src={f.dataUrl} alt="" className="w-full aspect-square object-cover border avoid-break" />)}</div> : <p className="text-[11px] text-slate-500">Tidak ada foto (data contoh).</p>}
+        {p.foto.length ? <div className="grid grid-cols-2 gap-3">{p.foto.map((f, i) => <img key={i} src={f.dataUrl} alt="" className="w-full h-auto border avoid-break" />)}</div> : <p className="text-[11px] text-slate-500">Tidak ada foto (data contoh).</p>}
       </>
     );
   }
