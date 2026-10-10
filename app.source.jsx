@@ -266,6 +266,14 @@ const I = {
   send: <><path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4z" /></>,
   trash: <><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15" /></>,
   cash: <><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="3" /></>,
+  chev: <><path d="M9 18l6-6-6-6" /></>,
+  inbox: <><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.5 5h13L22 12v7H2v-7z" /></>,
+  history: <><path d="M3 3v5h5" /><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" /><path d="M12 7v5l3 3" /></>,
+  calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
+  approve: <><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></>,
+  help: <><circle cx="12" cy="12" r="10" /><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></>,
+  alert: <><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></>,
+  team: <><circle cx="9" cy="7" r="4" /><path d="M2 21a7 7 0 0 1 14 0" /><path d="M16 3.1a4 4 0 0 1 0 7.8M22 21a7 7 0 0 0-4-6.3" /></>,
 };
 const Badge = ({ map, status }) => { const s = map[status] || ['?', 'slate']; return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border whitespace-nowrap ${TONE[s[1]]}`}>{s[0]}</span>; };
 const Kosong = ({ teks }) => <div className="bg-white/60 border border-dashed border-slate-300 rounded-2xl p-6 text-center text-sm text-slate-500">{teks}</div>;
@@ -277,7 +285,7 @@ const Seksi = ({ judul, children, aksi }) => (
 );
 const Baris = ({ k, v }) => <div className="flex justify-between gap-4 py-1.5 text-sm border-b border-slate-100 last:border-0"><span className="text-slate-500 shrink-0">{k}</span><span className="text-right font-semibold break-words min-w-0">{v}</span></div>;
 const Bar = ({ pct, tone = 'bg-red-600' }) => <div className="h-2 rounded-full bg-slate-200 overflow-hidden"><div className={`h-2 rounded-full ${pct === 100 ? 'bg-emerald-500' : tone}`} style={{ width: `${pct}%` }}></div></div>;
-const Kembali = ({ onClick, teks = 'Kembali' }) => <button onClick={onClick} className="flex items-center gap-1 text-sm font-bold text-slate-500"><Ico d={I.back} size={18} /> {teks}</button>;
+const Kembali = ({ onClick, teks = 'Kembali' }) => <button onClick={onClick} className="inline-flex items-center gap-2 pl-1.5 pr-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-sm font-bold text-slate-600 shadow-sm active:bg-slate-50"><span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center"><Ico d={I.back} size={16} /></span>{teks}</button>;
 const inp = 'w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-red-500';
 const Lab = ({ t, hint, children }) => <label className="block"><span className="text-xs font-bold text-slate-600">{t}</span>{hint && <span className="text-[11px] text-slate-400"> — {hint}</span>}<div className="mt-1">{children}</div></label>;
 const btnUtama = 'w-full py-3.5 rounded-2xl bg-red-600 text-white font-black flex items-center justify-center gap-2 disabled:opacity-40';
@@ -472,7 +480,9 @@ function App() {
     const p = await Notification.requestPermission(); setPerm(p);
     if (p === 'granted') systemNotify('Notifikasi aktif', 'Perangkat ini akan menerima pemberitahuan NVP Operasional.', '');
   };
-  const ctx = { st, me, go, setLaporan, setToast, simpanPekerjaan, simpanTugas, terimaTugas, simpanUnit, selesaiTugas, simpanAju, teruskan, kembalikan, tolak, bayar, ingatkanDirektur, perm, mintaIzin, installEvt, pasang };
+  const panduanTampil = !((st.settings.panduanTutup || {})[me.id]);
+  const tutupPanduan = () => setSt(s2 => ({ ...s2, settings: { ...s2.settings, panduanTutup: { ...(s2.settings.panduanTutup || {}), [me.id]: true } } }));
+  const ctx = { panduanTampil, tutupPanduan, st, me, go, setLaporan, setToast, simpanPekerjaan, simpanTugas, terimaTugas, simpanUnit, selesaiTugas, simpanAju, teruskan, kembalikan, tolak, bayar, ingatkanDirektur, perm, mintaIzin, installEvt, pasang };
 
   let body;
   const v = view.name;
@@ -495,10 +505,16 @@ function App() {
   else body = me.role === 'teknisi' ? <BerandaTeknisi ctx={ctx} /> : me.role === 'manager' ? <BerandaManager ctx={ctx} /> : <BerandaDirektur ctx={ctx} />;
 
   const NAV = {
-    teknisi: [['home', 'Beranda', I.home], ['tugas', 'Tugas', I.clip], ['uploadPekerjaan', 'Upload', I.plus, true], ['aju', 'Gaji', I.wallet], ['profil', 'Akun', I.user]],
-    manager: [['home', 'Beranda', I.home], ['tugas', 'Pemeriksaan', I.clip], ['buatTugas', 'Buat tugas', I.plus, true], ['aju', 'Pengajuan', I.wallet], ['profil', 'Akun', I.user]],
-    direktur: [['home', 'Beranda', I.home], ['tugas', 'Pemeriksaan', I.clip], ['aju', 'Pembayaran', I.wallet], ['kas', 'Kas keluar', I.cash], ['profil', 'Akun', I.user]],
+    teknisi: [['home', 'Beranda', I.home], ['tugas', 'Tugas Saya', I.clip], ['uploadPekerjaan', 'Lapor Kerja', I.plus, true], ['aju', 'Gaji', I.wallet], ['profil', 'Akun', I.user]],
+    manager: [['home', 'Beranda', I.home], ['tugas', 'Pemeriksaan', I.clip], ['buatTugas', 'Buat Tugas', I.plus, true], ['aju', 'Persetujuan', I.approve], ['profil', 'Akun', I.user]],
+    direktur: [['home', 'Beranda', I.home], ['aju', 'Pembayaran', I.wallet], ['tugas', 'Pemeriksaan', I.clip], ['kas', 'Kas Keluar', I.cash], ['profil', 'Akun', I.user]],
   }[me.role];
+  const JUDUL = {
+    home: 'Beranda', tugas: view.id ? 'Detail pemeriksaan' : (me.role === 'teknisi' ? 'Tugas Saya' : 'Pemeriksaan'), buatTugas: 'Buat Tugas',
+    pekerjaan: view.id ? 'Detail pekerjaan' : (me.role === 'teknisi' ? 'Riwayat Kerja' : 'Pekerjaan Teknisi'), uploadPekerjaan: 'Lapor Kerja',
+    aju: view.id ? 'Detail pengajuan' : ({ teknisi: 'Pengajuan Gaji', manager: 'Persetujuan', direktur: 'Pembayaran' }[me.role]), formAju: 'Formulir pengajuan',
+    kas: 'Kas Keluar', arsip: 'Arsip PDF', notif: 'Notifikasi', profil: 'Akun Saya',
+  };
   const tunggu = me.role === 'direktur' ? st.aju.filter(a => a.status === 'menunggu_direktur').length : 0;
 
   return (
@@ -507,7 +523,7 @@ function App() {
         <div className="max-w-lg mx-auto flex items-center justify-between px-4 h-14">
           <button onClick={() => go('home')} className="flex items-center gap-2.5 text-left">
             <img src="icons/icon-192.png" alt="" className="w-8 h-8 rounded-lg" />
-            <div className="leading-tight"><div className="text-sm font-black tracking-wide">NVP Operasional</div><div className="text-[10px] font-bold text-red-300 uppercase tracking-widest">Contoh · {ROLES[me.role]}</div></div>
+            <div className="leading-tight"><div className="text-[15px] font-black">{JUDUL[v] || 'NVP Operasional'}</div><div className="text-[10px] font-bold text-red-300 uppercase tracking-widest">{ROLES[me.role]}</div></div>
           </button>
           <div className="flex items-center gap-1">
             <button onClick={() => go('notif')} aria-label="Notifikasi" className="relative p-2 rounded-full hover:bg-white/10"><Ico d={I.bell} size={22} />{belumDibaca > 0 && <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center font-bold">{belumDibaca}</span>}</button>
@@ -520,16 +536,16 @@ function App() {
       <nav className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="max-w-lg mx-auto grid grid-cols-5">
           {NAV.map(([k, l, ic, fab]) => {
-            const aktif = v === k || (k === 'tugas' && v === 'tugas') || (k === 'aju' && (v === 'aju' || v === 'formAju'));
+            const aktif = v === k || (k === 'aju' && v === 'formAju') || (k === 'tugas' && me.role !== 'teknisi' && v === 'buatTugas' && !NAV.some(n => n[0] === 'buatTugas'));
             if (fab) return (
               <button key={k} aria-label={l} onClick={() => go(k)} className="flex flex-col items-center justify-center -mt-5">
                 <span className="w-14 h-14 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-600/30 border-4 border-white"><Ico d={ic} size={26} /></span>
-                <span className="text-[10px] font-bold text-slate-600 mt-0.5">{l}</span>
+                <span className="text-[10px] font-bold text-slate-700 mt-0.5 whitespace-nowrap">{l}</span>
               </button>
             );
             return (
-              <button key={k} onClick={() => go(k)} className={`relative flex flex-col items-center justify-center py-2.5 text-[10px] font-bold ${aktif ? 'text-red-600' : 'text-slate-500'}`}>
-                <Ico d={ic} size={22} /><span className="mt-0.5">{l}</span>
+              <button key={k} onClick={() => go(k)} aria-current={aktif ? 'page' : undefined} className={`relative flex flex-col items-center justify-center pt-2 pb-2.5 text-[10px] font-bold ${aktif ? 'text-red-700' : 'text-slate-500'}`}>
+                <span className={`w-12 h-7 rounded-full flex items-center justify-center ${aktif ? 'bg-red-100' : ''}`}><Ico d={ic} size={21} /></span><span className="mt-0.5 whitespace-nowrap">{l}</span>
                 {k === 'aju' && tunggu > 0 && <span className="absolute top-1.5 right-[20%] min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center">{tunggu}</span>}
               </button>
             );
@@ -576,18 +592,115 @@ function Login({ onMasuk }) {
 }
 
 // ================================================================== beranda per peran
-const Kartu = ({ judul, nilai, sub, onClick, tone }) => (
-  <button onClick={onClick} className="text-left bg-white rounded-2xl border border-slate-200 p-4 active:bg-slate-50">
-    <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{judul}</div>
-    <div className={`text-xl font-black mt-1.5 tabular-nums ${tone || ''}`}>{nilai}</div>
-    {sub && <div className="text-[11px] text-slate-500 mt-0.5">{sub}</div>}
-  </button>
-);
+const salamWaktu = () => { const h = new Date().getHours(); return h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam'; };
+const hariIni = () => new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const WARNA = {
+  red: 'bg-red-50 text-red-600', blue: 'bg-blue-50 text-blue-600', green: 'bg-emerald-50 text-emerald-600',
+  amber: 'bg-amber-50 text-amber-600', violet: 'bg-violet-50 text-violet-600', slate: 'bg-slate-100 text-slate-600',
+};
+
+function Sambutan({ me, angka }) {
+  return (
+    <section className="rounded-3xl bg-ink text-white p-5 relative overflow-hidden">
+      <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-red-600/25"></div>
+      <div className="relative">
+        <div className="text-xs text-slate-400">{hariIni()}</div>
+        <h2 className="text-2xl font-black mt-1 leading-tight">{salamWaktu()}, {me.name.split(' ')[0]}</h2>
+        <span className="inline-block mt-2 px-2.5 py-1 rounded-full bg-white/10 text-[11px] font-bold tracking-wide">{ROLES[me.role]}</span>
+        {angka && angka.length > 0 && (
+          <div className={`grid gap-3 mt-4 ${angka.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            {angka.map(([l, v]) => <div key={l} className="bg-white/5 border border-white/10 rounded-2xl px-3 py-2.5"><div className="text-lg font-black tabular-nums leading-tight">{v}</div><div className="text-[10px] font-semibold text-slate-400 leading-tight mt-0.5">{l}</div></div>)}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// Daftar "Perlu tindakan": kalimat jelas + satu ketukan menuju layarnya
+function Tindakan({ items }) {
+  const [lebih, setLebih] = useState(false);
+  return (
+    <section>
+      <h3 className="text-sm font-black text-slate-800 mb-2">Perlu tindakan Anda</h3>
+      {items.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3"><span className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><Ico d={I.check} /></span><div><b className="text-sm block">Semua beres</b><span className="text-xs text-slate-500">Tidak ada yang menunggu Anda saat ini.</span></div></div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+          {items.slice(0, lebih ? items.length : 5).map((t, k) => (
+            <button key={k} onClick={t.onClick} className="w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50">
+              <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${WARNA[t.warna || 'red']}`}><Ico d={t.ikon || I.alert} size={20} /></span>
+              <span className="flex-1 min-w-0"><b className="block text-sm leading-snug">{t.judul}</b>{t.sub && <span className="block text-xs text-slate-500 truncate">{t.sub}</span>}</span>
+              <span className="text-xs font-bold text-red-600 shrink-0">{t.aksi || 'Buka'}</span><Ico d={I.chev} size={16} className="text-slate-300 shrink-0" />
+            </button>
+          ))}
+          {items.length > 5 && <button onClick={() => setLebih(!lebih)} className="w-full p-3 text-center text-xs font-bold text-slate-600">{lebih ? 'Tampilkan lebih sedikit' : `Tampilkan ${items.length - 5} lainnya`}</button>}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// Menu utama: ubin besar ber-ikon dengan penjelasan singkat
+function MenuUtama({ items }) {
+  return (
+    <section>
+      <h3 className="text-sm font-black text-slate-800 mb-2">Menu</h3>
+      <div className="grid grid-cols-2 gap-3">
+        {items.map(m => (
+          <button key={m.judul} onClick={m.onClick} className="relative text-left bg-white rounded-2xl border border-slate-200 p-4 active:bg-slate-50 shadow-sm">
+            <span className={`w-11 h-11 rounded-xl flex items-center justify-center ${WARNA[m.warna]}`}><Ico d={m.ikon} size={22} /></span>
+            <b className="block text-[15px] mt-3 leading-tight">{m.judul}</b>
+            <span className="block text-[11px] text-slate-500 mt-1 leading-snug">{m.ket}</span>
+            {m.badge > 0 && <span className="absolute top-3 right-3 min-w-[22px] h-[22px] px-1.5 rounded-full bg-red-600 text-white text-[11px] font-bold leading-[22px] text-center">{m.badge}</span>}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const PANDUAN = {
+  teknisi: [
+    ['Terima tugas', 'Buka Tugas Saya, pilih tugas baru, tekan “Terima tugas”.'],
+    ['Periksa tiap APAR', 'Isi tekanan, masa berlaku, selang, handle, pin, lalu ambil foto. Aplikasi memberi tanda Layak/Tidak layak.'],
+    ['Selesaikan', 'Setelah semua APAR terisi, tekan “Selesai & buat laporan PDF”.'],
+    ['Lapor kerja', 'Selesai refilling/pengadaan? Tekan tombol merah “Lapor Kerja” di bawah, isi data dan foto.'],
+    ['Ajukan gaji', 'Tiap bulan lewat menu Gaji. Status bisa dipantau sampai dibayar.'],
+  ],
+  manager: [
+    ['Jadwalkan', 'Laporan kerja teknisi masuk ke “Pekerjaan Teknisi”. Tekan “Jadwalkan” untuk membuat tugas pemeriksaan.'],
+    ['Buat tugas', 'Atau tekan tombol merah “Buat Tugas”: isi tempat, tanggal, APAR, dan pilih teknisi.'],
+    ['Pantau', 'Progres tiap pemeriksaan terlihat di menu Pemeriksaan (jumlah APAR yang sudah diperiksa).'],
+    ['Periksa gaji', 'Di menu Persetujuan, periksa gaji teknisi lalu “Teruskan ke Direktur” atau “Kembalikan”.'],
+    ['Ingatkan Direktur', 'Jika pembayaran tertunda, tekan “Ingatkan Direktur” — HP Direktur berbunyi.'],
+  ],
+  direktur: [
+    ['Cek pembayaran', 'Menu Pembayaran berisi gaji dan pembayaran yang sudah diperiksa Manager.'],
+    ['Bayar', 'Buka pengajuan, isi tanggal & referensi, foto bukti, lalu “Tandai dibayar”.'],
+    ['Otomatis tercatat', 'Pembayaran langsung masuk Kas Keluar dan dikirim ke portal viopran.com.'],
+    ['Pantau', 'Progres pemeriksaan dan arsip laporan PDF per klien bisa dilihat kapan saja.'],
+  ],
+};
+function Panduan({ role, onTutup }) {
+  return (
+    <section className="bg-white rounded-2xl border-2 border-red-100 p-4">
+      <div className="flex items-center gap-2"><span className="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center"><Ico d={I.help} size={18} /></span><b className="text-sm">Cara memakai aplikasi ({ROLES[role]})</b></div>
+      <ol className="mt-3 space-y-2.5">
+        {PANDUAN[role].map(([j, k], i) => (
+          <li key={j} className="flex gap-3"><span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-black flex items-center justify-center shrink-0">{i + 1}</span><span className="text-sm leading-snug"><b>{j}.</b> <span className="text-slate-600">{k}</span></span></li>
+        ))}
+      </ol>
+      {onTutup && <button onClick={onTutup} className="mt-4 w-full py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold">Mengerti, sembunyikan panduan</button>}
+    </section>
+  );
+}
+
 function AjakNotif({ ctx }) {
   if (!(ctx.perm === 'default' || ctx.installEvt)) return null;
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-4 flex gap-3 items-start">
-      <span className="w-9 h-9 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0"><Ico d={I.bell} /></span>
+      <span className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0"><Ico d={I.bell} /></span>
       <div className="flex-1 text-sm"><b>Aktifkan pemberitahuan</b><p className="text-slate-500 text-xs mt-0.5">Agar HP berbunyi saat ada tugas, pengajuan, atau pembayaran baru.</p>
         <div className="flex flex-wrap gap-2 mt-2.5">
           {ctx.perm === 'default' && <button onClick={ctx.mintaIzin} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold">Izinkan notifikasi</button>}
@@ -597,35 +710,42 @@ function AjakNotif({ ctx }) {
     </div>
   );
 }
-const Salam = ({ me }) => <div><h2 className="text-xl font-black">Halo, {me.name.split(' ')[0]}</h2><p className="text-sm text-slate-500">{ROLES[me.role]}</p></div>;
+const Kartu = ({ judul, nilai, sub, onClick, tone }) => (
+  <button onClick={onClick} className="text-left bg-white rounded-2xl border border-slate-200 p-4 active:bg-slate-50">
+    <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{judul}</div>
+    <div className={`text-xl font-black mt-1.5 tabular-nums ${tone || ''}`}>{nilai}</div>
+    {sub && <div className="text-[11px] text-slate-500 mt-0.5">{sub}</div>}
+  </button>
+);
+const PanduanBeranda = ({ ctx }) => ctx.panduanTampil ? <Panduan role={ctx.me.role} onTutup={ctx.tutupPanduan} /> : null;
+const Bagian = ({ judul, aksi, children }) => <section><div className="flex items-center justify-between mb-2"><h3 className="text-sm font-black text-slate-800">{judul}</h3>{aksi}</div>{children}</section>;
+const LinkKecil = ({ onClick, children }) => <button onClick={onClick} className="text-xs font-bold text-red-600">{children}</button>;
 
 function BerandaTeknisi({ ctx }) {
   const { st, me, go } = ctx;
   const mine = st.tugas.filter(t => t.teknisiIds.includes(me.id));
   const baru = mine.filter(t => t.status === 'baru'), jalan = mine.filter(t => t.status === 'dikerjakan');
   const ajuSaya = st.aju.filter(a => a.pemohonId === me.id);
+  const kembali = ajuSaya.filter(a => a.status === 'dikembalikan');
   const pkj = st.pekerjaan.filter(p => p.teknisiId === me.id);
+  const tindakan = [
+    ...baru.map(t => ({ judul: `Tugas baru: ${t.tempat}`, sub: `${t.jumlah} APAR · mulai ${fmtDate(t.tglMulai)}`, aksi: 'Terima', warna: 'amber', ikon: I.inbox, onClick: () => go('tugas', { id: t.id }) })),
+    ...jalan.map(t => { const p = progres(t); return { judul: `Lanjutkan: ${t.tempat}`, sub: `${p.d} dari ${p.n} APAR sudah diperiksa · selesai ${fmtDate(t.tglSelesai)}`, aksi: 'Lanjut', warna: 'blue', ikon: I.clip, onClick: () => go('tugas', { id: t.id }) }; }),
+    ...kembali.map(a => ({ judul: 'Pengajuan gaji dikembalikan', sub: a.keperluan, aksi: 'Perbaiki', warna: 'red', ikon: I.wallet, onClick: () => go('aju', { id: a.id }) })),
+  ];
+  const prosesGaji = ajuSaya.filter(a => ['cek_manager', 'menunggu_direktur'].includes(a.status)).length;
   return (
     <div className="space-y-5">
-      <Salam me={me} />
+      <Sambutan me={me} angka={[['Tugas baru', baru.length], ['Sedang dikerjakan', jalan.length], ['Gaji diproses', prosesGaji]]} />
       <AjakNotif ctx={ctx} />
-      <div className="grid grid-cols-2 gap-3">
-        <Kartu judul="Tugas masuk" nilai={baru.length} sub="belum diterima" onClick={() => go('tugas')} tone={baru.length ? 'text-amber-600' : ''} />
-        <Kartu judul="Sedang dikerjakan" nilai={jalan.length} sub="pemeriksaan" onClick={() => go('tugas')} />
-      </div>
-      <section>
-        <h3 className="font-black mb-2">Tugas pemeriksaan saya</h3>
-        {[...baru, ...jalan].length === 0 ? <Kosong teks="Belum ada tugas." /> : <div className="space-y-2.5">{[...baru, ...jalan].map(t => <KartuTugas key={t.id} t={t} onClick={() => go('tugas', { id: t.id })} />)}</div>}
-      </section>
-      <div className="grid grid-cols-2 gap-3">
-        <button onClick={() => go('uploadPekerjaan')} className="bg-red-600 text-white rounded-2xl p-4 text-left"><Ico d={I.wrench} /><b className="block mt-2 text-sm">Upload pekerjaan</b><span className="text-[11px] text-red-100">Refilling / pengadaan</span></button>
-        <button onClick={() => go('formAju', { jenis: 'gaji' })} className="bg-slate-900 text-white rounded-2xl p-4 text-left"><Ico d={I.wallet} /><b className="block mt-2 text-sm">Ajukan gaji</b><span className="text-[11px] text-slate-400">Diperiksa Manager</span></button>
-      </div>
-      <section>
-        <div className="flex items-center justify-between mb-2"><h3 className="font-black">Pekerjaan terakhir</h3><button onClick={() => go('pekerjaan')} className="text-xs font-bold text-red-600">Semua</button></div>
-        {pkj.length === 0 ? <Kosong teks="Belum ada pekerjaan diunggah." /> : <div className="space-y-2.5">{pkj.slice(0, 2).map(p => <KartuPekerjaan key={p.id} p={p} onClick={() => go('pekerjaan', { id: p.id })} />)}</div>}
-      </section>
-      {ajuSaya.length > 0 && <section><h3 className="font-black mb-2">Pengajuan gaji saya</h3><div className="space-y-2.5">{ajuSaya.slice(0, 2).map(a => <KartuAju key={a.id} a={a} onClick={() => go('aju', { id: a.id })} />)}</div></section>}
+      <Tindakan items={tindakan} />
+      <MenuUtama items={[
+        { judul: 'Tugas Saya', ket: 'Tugas pemeriksaan APAR dari Manager', ikon: I.clip, warna: 'blue', badge: baru.length, onClick: () => go('tugas') },
+        { judul: 'Lapor Kerja', ket: 'Refilling / pengadaan + foto', ikon: I.wrench, warna: 'red', onClick: () => go('uploadPekerjaan') },
+        { judul: 'Riwayat Kerja', ket: `${pkj.length} laporan pekerjaan Anda`, ikon: I.history, warna: 'slate', onClick: () => go('pekerjaan') },
+        { judul: 'Pengajuan Gaji', ket: 'Ajukan & pantau status gaji', ikon: I.wallet, warna: 'green', badge: kembali.length, onClick: () => go('aju') },
+      ]} />
+      <PanduanBeranda ctx={ctx} />
     </div>
   );
 }
@@ -633,37 +753,33 @@ function BerandaTeknisi({ ctx }) {
 function BerandaManager({ ctx }) {
   const { st, me, go } = ctx;
   const aktif = st.tugas.filter(t => t.status !== 'selesai');
+  const telat = aktif.filter(t => t.tglSelesai < todayStr());
   const belumJadwal = st.pekerjaan.filter(p => !p.taskId);
   const cek = st.aju.filter(a => a.status === 'cek_manager');
   const tunggu = st.aju.filter(a => a.status === 'menunggu_direktur');
+  const tindakan = [
+    ...cek.map(a => ({ judul: `Periksa gaji ${userById(a.pemohonId).name}`, sub: `${a.keperluan} · ${fmt(a.total)}`, aksi: 'Periksa', warna: 'amber', ikon: I.approve, onClick: () => go('aju', { id: a.id }) })),
+    ...belumJadwal.map(p => ({ judul: `Jadwalkan pemeriksaan: ${p.konsumen}`, sub: `${p.jenis} ${sum(p.rows, r => r.jumlah)} APAR · oleh ${userById(p.teknisiId).name}`, aksi: 'Jadwalkan', warna: 'red', ikon: I.calendar, onClick: () => go('buatTugas', { dari: p.id }) })),
+    ...telat.map(t => ({ judul: `Lewat jadwal: ${t.tempat}`, sub: `Target ${fmtDate(t.tglSelesai)} · ${progres(t).d}/${progres(t).n} APAR`, aksi: 'Lihat', warna: 'red', ikon: I.alert, onClick: () => go('tugas', { id: t.id }) })),
+  ];
+  if (tunggu.length) tindakan.push({ judul: `${tunggu.length} pengajuan menunggu Direktur`, sub: `Total ${fmt(sum(tunggu, a => a.total))} — kirim pengingat ke HP Direktur`, aksi: 'Ingatkan', warna: 'violet', ikon: I.send, onClick: ctx.ingatkanDirektur });
   return (
     <div className="space-y-5">
-      <Salam me={me} />
+      <Sambutan me={me} angka={[['Pemeriksaan aktif', aktif.length], ['Gaji perlu diperiksa', cek.length], ['Belum dijadwalkan', belumJadwal.length]]} />
       <AjakNotif ctx={ctx} />
-      <div className="grid grid-cols-2 gap-3">
-        <Kartu judul="Gaji perlu diperiksa" nilai={cek.length} sub={fmt(sum(cek, a => a.total))} onClick={() => go('aju')} tone={cek.length ? 'text-amber-600' : ''} />
-        <Kartu judul="Menunggu Direktur" nilai={tunggu.length} sub={fmt(sum(tunggu, a => a.total))} onClick={() => go('aju')} />
-        <Kartu judul="Pemeriksaan aktif" nilai={aktif.length} sub={`${sum(aktif, t => progres(t).d)}/${sum(aktif, t => t.units.length)} APAR diperiksa`} onClick={() => go('tugas')} />
-        <Kartu judul="Belum dijadwalkan" nilai={belumJadwal.length} sub="dari pekerjaan teknisi" onClick={() => go('pekerjaan')} tone={belumJadwal.length ? 'text-red-600' : ''} />
-      </div>
-      {tunggu.length > 0 && (
-        <div className="bg-slate-900 text-white rounded-2xl p-4">
-          <b className="text-sm">{tunggu.length} pengajuan menunggu pembayaran Direktur</b>
-          <p className="text-xs text-slate-400 mt-0.5">Total {fmt(sum(tunggu, a => a.total))}. Kirim pengingat ke HP Direktur agar segera ditindaklanjuti.</p>
-          <button onClick={ctx.ingatkanDirektur} className="mt-3 w-full py-2.5 rounded-xl bg-red-600 font-black text-sm flex items-center justify-center gap-2"><Ico d={I.send} size={18} /> Ingatkan Direktur</button>
-        </div>
-      )}
-      {belumJadwal.length > 0 && (
-        <section>
-          <h3 className="font-black mb-2">Jadwalkan pemeriksaan</h3>
-          <div className="space-y-2.5">{belumJadwal.map(p => <KartuPekerjaan key={p.id} p={p} onClick={() => go('pekerjaan', { id: p.id })} />)}</div>
-        </section>
-      )}
-      <section>
-        <h3 className="font-black mb-2">Progres pemeriksaan</h3>
-        {aktif.length === 0 ? <Kosong teks="Tidak ada pemeriksaan aktif." /> : <div className="space-y-2.5">{aktif.map(t => <KartuTugas key={t.id} t={t} onClick={() => go('tugas', { id: t.id })} />)}</div>}
-      </section>
-      <button onClick={() => go('arsip')} className={btnGaris + ' flex items-center justify-center gap-2'}><Ico d={I.folder} size={18} /> Arsip PDF (Google Drive)</button>
+      <Tindakan items={tindakan} />
+      <MenuUtama items={[
+        { judul: 'Buat Tugas', ket: 'Tugas pemeriksaan untuk teknisi', ikon: I.plus, warna: 'red', onClick: () => go('buatTugas') },
+        { judul: 'Pemeriksaan', ket: 'Pantau progres tiap lokasi', ikon: I.clip, warna: 'blue', badge: telat.length, onClick: () => go('tugas') },
+        { judul: 'Pekerjaan Teknisi', ket: 'Laporan refilling & pengadaan', ikon: I.wrench, warna: 'amber', badge: belumJadwal.length, onClick: () => go('pekerjaan') },
+        { judul: 'Persetujuan', ket: 'Gaji teknisi & pengajuan bayar', ikon: I.approve, warna: 'green', badge: cek.length, onClick: () => go('aju') },
+        { judul: 'Ajukan Pembayaran', ket: 'Pengadaan & biaya operasional', ikon: I.cash, warna: 'violet', onClick: () => go('formAju', { jenis: 'pembayaran' }) },
+        { judul: 'Arsip PDF', ket: 'Laporan per klien (Google Drive)', ikon: I.folder, warna: 'slate', onClick: () => go('arsip') },
+      ]} />
+      <PanduanBeranda ctx={ctx} />
+      <Bagian judul="Progres pemeriksaan" aksi={<LinkKecil onClick={() => go('tugas')}>Lihat semua</LinkKecil>}>
+        {aktif.length === 0 ? <Kosong teks="Tidak ada pemeriksaan aktif." /> : <div className="space-y-2.5">{aktif.slice(0, 3).map(t => <KartuTugas key={t.id} t={t} onClick={() => go('tugas', { id: t.id })} />)}</div>}
+      </Bagian>
     </div>
   );
 }
@@ -674,25 +790,22 @@ function BerandaDirektur({ ctx }) {
   const bln = todayStr().slice(0, 7);
   const kasBulan = st.kasKeluar.filter(k => k.tgl.startsWith(bln));
   const aktif = st.tugas.filter(t => t.status !== 'selesai');
-  const selesai = st.tugas.filter(t => t.status === 'selesai');
+  const tindakan = tunggu.map(a => ({ judul: `Bayar: ${a.keperluan}`, sub: `${userById(a.pemohonId).name} · ${fmt(a.total)}`, aksi: 'Bayar', warna: 'red', ikon: I.cash, onClick: () => go('aju', { id: a.id }) }));
   return (
     <div className="space-y-5">
-      <Salam me={me} />
+      <Sambutan me={me} angka={[['Perlu dibayar', fmt(sum(tunggu, a => a.total))], ['Kas keluar bulan ini', fmt(sum(kasBulan, k => k.nominal))]]} />
       <AjakNotif ctx={ctx} />
-      <div className="grid grid-cols-2 gap-3">
-        <Kartu judul="Perlu dibayar" nilai={tunggu.length} sub={fmt(sum(tunggu, a => a.total))} onClick={() => go('aju')} tone={tunggu.length ? 'text-red-600' : ''} />
-        <Kartu judul="Kas keluar bulan ini" nilai={fmt(sum(kasBulan, k => k.nominal))} sub={`${kasBulan.length} transaksi`} onClick={() => go('kas')} />
-      </div>
-      <section>
-        <h3 className="font-black mb-2">Menunggu pembayaran Anda</h3>
-        {tunggu.length === 0 ? <Kosong teks="Semua pengajuan sudah ditindaklanjuti." /> : <div className="space-y-2.5">{tunggu.map(a => <KartuAju key={a.id} a={a} onClick={() => go('aju', { id: a.id })} />)}</div>}
-      </section>
-      <section>
-        <h3 className="font-black mb-2">Progres pemeriksaan</h3>
-        {aktif.length === 0 ? <Kosong teks="Tidak ada pemeriksaan aktif." /> : <div className="space-y-2.5">{aktif.map(t => <KartuTugas key={t.id} t={t} onClick={() => go('tugas', { id: t.id })} />)}</div>}
-        <p className="text-xs text-slate-500 mt-2">{selesai.length} pemeriksaan selesai · laporan PDF di arsip.</p>
-      </section>
-      <button onClick={() => go('arsip')} className={btnGaris + ' flex items-center justify-center gap-2'}><Ico d={I.folder} size={18} /> Arsip PDF (Google Drive)</button>
+      <Tindakan items={tindakan} />
+      <MenuUtama items={[
+        { judul: 'Pembayaran', ket: 'Gaji & pengajuan yang perlu dibayar', ikon: I.wallet, warna: 'red', badge: tunggu.length, onClick: () => go('aju') },
+        { judul: 'Kas Keluar', ket: 'Tercatat otomatis ke portal', ikon: I.cash, warna: 'green', onClick: () => go('kas') },
+        { judul: 'Pemeriksaan', ket: 'Progres pemeriksaan APAR', ikon: I.clip, warna: 'blue', onClick: () => go('tugas') },
+        { judul: 'Arsip PDF', ket: 'Laporan per klien (Google Drive)', ikon: I.folder, warna: 'slate', onClick: () => go('arsip') },
+      ]} />
+      <PanduanBeranda ctx={ctx} />
+      <Bagian judul="Progres pemeriksaan" aksi={<LinkKecil onClick={() => go('tugas')}>Lihat semua</LinkKecil>}>
+        {aktif.length === 0 ? <Kosong teks="Tidak ada pemeriksaan aktif." /> : <div className="space-y-2.5">{aktif.slice(0, 3).map(t => <KartuTugas key={t.id} t={t} onClick={() => go('tugas', { id: t.id })} />)}</div>}
+      </Bagian>
     </div>
   );
 }
@@ -738,7 +851,7 @@ function DaftarTugas({ ctx }) {
   const list = semua.filter(t => tab === 'aktif' ? t.status !== 'selesai' : t.status === 'selesai');
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between"><h2 className="text-xl font-black">{me.role === 'teknisi' ? 'Tugas saya' : 'Pemeriksaan'}</h2>{me.role === 'manager' && <button onClick={() => go('buatTugas')} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold">+ Buat tugas</button>}</div>
+      <div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-black">{me.role === 'teknisi' ? 'Tugas Saya' : 'Pemeriksaan'}</h2><p className="text-xs text-slate-500">{me.role === 'teknisi' ? 'Ketuk tugas untuk menerima dan mengisi tabel pemeriksaan.' : 'Progres pemeriksaan APAR di setiap lokasi.'}</p></div>{me.role === 'manager' && <button onClick={() => go('buatTugas')} className="px-3 py-2 rounded-xl bg-red-600 text-white text-xs font-bold shrink-0">+ Buat tugas</button>}</div>
       <div className="grid grid-cols-2 bg-slate-200 rounded-xl p-1 text-sm font-bold">{[['aktif', 'Aktif'], ['selesai', 'Selesai']].map(([k, l]) => <button key={k} onClick={() => setTab(k)} className={`py-1.5 rounded-lg ${tab === k ? 'bg-white shadow-sm' : 'text-slate-500'}`}>{l}</button>)}</div>
       {list.length === 0 ? <Kosong teks="Tidak ada tugas." /> : <div className="space-y-2.5">{list.map(t => <KartuTugas key={t.id} t={t} onClick={() => go('tugas', { id: t.id })} />)}</div>}
       {me.role === 'manager' && <button onClick={() => go('pekerjaan')} className={btnGaris}>Lihat pekerjaan refilling/pengadaan teknisi</button>}
@@ -770,7 +883,7 @@ function FormTugas({ ctx, dari }) {
     <div className="space-y-4">
       <Kembali onClick={() => go(sumber ? 'pekerjaan' : 'tugas', sumber ? { id: sumber.id } : {})} teks="Batal" />
       <div><h2 className="text-xl font-black">Buat tugas pemeriksaan</h2>{sumber && <p className="text-xs text-slate-500">Diisi otomatis dari {sumber.jenis.toLowerCase()} {sumber.id}</p>}</div>
-      <Seksi judul="Lokasi & jadwal">
+      <Seksi judul="Langkah 1 · Lokasi & jadwal">
         <div className="space-y-3">
           <Lab t="Tempat pemeriksaan"><input value={f.tempat} onChange={(e) => set('tempat', e.target.value)} placeholder="Nama perusahaan / instansi" className={inp} /></Lab>
           <Lab t="Alamat" hint="opsional"><input value={f.alamat} onChange={(e) => set('alamat', e.target.value)} className={inp} /></Lab>
@@ -780,11 +893,11 @@ function FormTugas({ ctx, dari }) {
           </div>
         </div>
       </Seksi>
-      <Seksi judul="APAR yang diperiksa">
+      <Seksi judul="Langkah 2 · APAR yang diperiksa">
         <BarisApar rows={rows} setRows={setRows} />
         <div className="flex justify-between items-center pt-3 mt-3 border-t border-slate-100"><span className="font-bold">Jumlah APAR</span><span className="text-xl font-black tabular-nums">{jumlah}</span></div>
       </Seksi>
-      <Seksi judul="Teknisi">
+      <Seksi judul="Langkah 3 · Teknisi yang ditugaskan">
         <div className="space-y-2">{teknisi.map(u => (
           <label key={u.id} className="flex items-center gap-3 text-sm bg-slate-50 rounded-xl p-3"><input type="checkbox" className="w-5 h-5 accent-red-600" checked={f.teknisiIds.includes(u.id)} onChange={(e) => set('teknisiIds', e.target.checked ? [...f.teknisiIds, u.id] : f.teknisiIds.filter(x => x !== u.id))} />{u.name}</label>
         ))}</div>
@@ -854,7 +967,7 @@ function FormUnit({ t, idx, me, onBatal, onSimpan }) {
     <div className="space-y-4">
       <Kembali onClick={onBatal} teks="Kembali ke tabel" />
       <div><div className="text-[11px] font-bold text-slate-400">{t.tempat}</div><h2 className="text-xl font-black">APAR no. {u.no} <span className="text-sm font-bold text-slate-400">dari {t.units.length}</span></h2></div>
-      <Seksi judul="Identitas">
+      <Seksi judul="Langkah 1 · Identitas APAR">
         <div className="space-y-3">
           <Lab t="Lokasi penempatan"><input value={u.lokasi} onChange={(e) => set('lokasi', e.target.value)} placeholder="mis. Lobi lantai 1" className={inp} /></Lab>
           <div className="grid grid-cols-2 gap-2">
@@ -863,7 +976,7 @@ function FormUnit({ t, idx, me, onBatal, onSimpan }) {
           </div>
         </div>
       </Seksi>
-      <Seksi judul="Pemeriksaan">
+      <Seksi judul="Langkah 2 · Hasil pemeriksaan">
         <div className="space-y-4">
           <div><div className="text-xs font-bold text-slate-600 mb-1.5">Tekanan tabung (manometer)</div><Segmen label="Tekanan" value={u.tekanan} options={OPSI.tekanan} onChange={(v) => set('tekanan', v)} /></div>
           <Lab t="Masa berlaku isi" hint="tanggal kedaluwarsa pada label"><input type="date" aria-label="Masa berlaku" value={u.kedaluwarsa} onChange={(e) => set('kedaluwarsa', e.target.value)} className={inp} /></Lab>
@@ -904,8 +1017,8 @@ function FormPekerjaan({ ctx }) {
   return (
     <div className="space-y-4">
       <Kembali onClick={() => go('home')} teks="Batal" />
-      <div><h2 className="text-xl font-black">Upload pekerjaan</h2><p className="text-xs text-slate-500">Hasilnya otomatis masuk daftar yang akan dijadwalkan pemeriksaan oleh Manager Operasional.</p></div>
-      <Seksi judul="Pekerjaan">
+      <div><h2 className="text-xl font-black">Lapor kerja</h2><p className="text-xs text-slate-500">Isi setelah selesai refilling atau pengadaan. Laporan otomatis masuk ke Manager Operasional untuk dijadwalkan pemeriksaan.</p></div>
+      <Seksi judul="Langkah 1 · Data pekerjaan">
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">{['Refilling', 'Pengadaan'].map(j => <button key={j} type="button" onClick={() => set('jenis', j)} className={`rounded-xl border-2 p-3 text-left ${f.jenis === j ? 'border-red-500 bg-red-50' : 'border-slate-200 bg-white'}`}><b className="block text-sm">{j}</b><span className="text-[11px] text-slate-500">{j === 'Refilling' ? 'isi ulang APAR' : 'APAR baru'}</span></button>)}</div>
           <Lab t="Tanggal pengerjaan"><input type="date" value={f.tanggal} onChange={(e) => set('tanggal', e.target.value)} className={inp} /></Lab>
@@ -913,8 +1026,8 @@ function FormPekerjaan({ ctx }) {
           <Lab t="Alamat" hint="opsional"><input value={f.alamat} onChange={(e) => set('alamat', e.target.value)} className={inp} /></Lab>
         </div>
       </Seksi>
-      <Seksi judul="APAR"><BarisApar rows={rows} setRows={setRows} /></Seksi>
-      <Seksi judul="Dokumentasi"><FotoKamera label="Foto pengerjaan" list={foto} setList={setFoto} max={6} info={{ konsumen: f.konsumen.trim(), teknisi: ctx.me.name, keterangan: `${f.jenis} APAR` }} syarat={f.konsumen.trim() ? '' : 'Isi nama perusahaan / konsumen dulu — dipakai untuk watermark foto.'} /></Seksi>
+      <Seksi judul="Langkah 2 · APAR yang dikerjakan"><BarisApar rows={rows} setRows={setRows} /></Seksi>
+      <Seksi judul="Langkah 3 · Foto dokumentasi"><FotoKamera label="Foto pengerjaan" list={foto} setList={setFoto} max={6} info={{ konsumen: f.konsumen.trim(), teknisi: ctx.me.name, keterangan: `${f.jenis} APAR` }} syarat={f.konsumen.trim() ? '' : 'Isi nama perusahaan / konsumen dulu — dipakai untuk watermark foto.'} /></Seksi>
       {err && <p className="text-sm text-rose-600 font-semibold bg-rose-50 border border-rose-200 rounded-xl p-3">{err}</p>}
       <button onClick={kirim} className={btnUtama}><Ico d={I.send} /> Simpan pekerjaan</button>
     </div>
@@ -960,7 +1073,7 @@ function DaftarAju({ ctx }) {
   const [tab, setTab] = useState('proses');
   const semua = me.role === 'teknisi' ? st.aju.filter(a => a.pemohonId === me.id) : st.aju;
   const list = semua.filter(a => tab === 'proses' ? !['dibayar', 'ditolak'].includes(a.status) : ['dibayar', 'ditolak'].includes(a.status));
-  const judul = { teknisi: 'Pengajuan gaji saya', manager: 'Pengajuan', direktur: 'Pembayaran' }[me.role];
+  const judul = { teknisi: 'Pengajuan Gaji', manager: 'Persetujuan', direktur: 'Pembayaran' }[me.role];
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between"><h2 className="text-xl font-black">{judul}</h2>
@@ -1000,7 +1113,7 @@ function FormAju({ ctx, jenis, editId }) {
     <div className="space-y-4">
       <Kembali onClick={() => go('aju', editId ? { id: editId } : {})} teks="Batal" />
       <div><h2 className="text-xl font-black">{j === 'gaji' ? 'Pengajuan gaji' : 'Pengajuan pembayaran'}</h2><p className="text-xs text-slate-500">{j === 'gaji' ? 'Diperiksa Manager Operasional, lalu dibayar Direktur.' : 'Langsung ke Direktur untuk dibayar.'}</p></div>
-      <Seksi judul={j === 'gaji' ? 'Periode' : 'Keperluan'}>
+      <Seksi judul={j === 'gaji' ? 'Langkah 1 · Periode gaji' : 'Langkah 1 · Keperluan'}>
         {j === 'gaji' ? <Lab t="Bulan"><input type="month" value={f.periode} onChange={(e) => set('periode', e.target.value)} className={inp} /></Lab> : (
           <div className="space-y-3">
             <Lab t="Keperluan"><input value={f.keperluan} onChange={(e) => set('keperluan', e.target.value)} placeholder="mis. Pembelian 20 tabung APAR 6 kg" className={inp} /></Lab>
@@ -1009,7 +1122,7 @@ function FormAju({ ctx, jenis, editId }) {
           </div>
         )}
       </Seksi>
-      <Seksi judul="Rincian">
+      <Seksi judul="Langkah 2 · Rincian jumlah">
         <div className="space-y-2">
           {f.rincian.map((r, i) => (
             <div key={i} className="grid grid-cols-[1fr_130px_auto] gap-2 items-center">
@@ -1022,13 +1135,13 @@ function FormAju({ ctx, jenis, editId }) {
           <div className="flex justify-between items-center pt-2 border-t border-slate-100"><span className="font-bold">Total</span><span className="text-xl font-black tabular-nums">{fmt(total)}</span></div>
         </div>
       </Seksi>
-      <Seksi judul="Rekening tujuan">
+      <Seksi judul="Langkah 3 · Rekening tujuan">
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2"><Lab t="Bank"><input value={f.bank} onChange={(e) => set('bank', e.target.value)} className={inp} /></Lab><Lab t="No. rekening"><input inputMode="numeric" value={f.rekening} onChange={(e) => set('rekening', e.target.value)} className={inp} /></Lab></div>
           <Lab t="Atas nama"><input value={f.atasNama} onChange={(e) => set('atasNama', e.target.value)} className={inp} /></Lab>
         </div>
       </Seksi>
-      <Seksi judul="Lampiran"><FotoInput label={j === 'gaji' ? 'Foto absensi / slip lembur' : 'Foto penawaran / invoice'} list={f.lampiran || []} setList={(l) => set('lampiran', l)} max={4} /></Seksi>
+      <Seksi judul="Langkah 4 · Lampiran"><FotoInput label={j === 'gaji' ? 'Foto absensi / slip lembur' : 'Foto penawaran / invoice'} list={f.lampiran || []} setList={(l) => set('lampiran', l)} max={4} /></Seksi>
       {err && <p className="text-sm text-rose-600 font-semibold bg-rose-50 border border-rose-200 rounded-xl p-3">{err}</p>}
       <button onClick={kirim} className={btnUtama}><Ico d={I.send} /> {editId ? 'Ajukan ulang' : 'Kirim pengajuan'}</button>
     </div>
@@ -1227,6 +1340,7 @@ function Notifikasi({ list, buka, bacaSemua }) {
 }
 
 function Profil({ ctx, keluar, tesNotif, reset }) {
+  const [panduan, setPanduan] = useState(false);
   const { st, me, perm } = ctx;
   const iOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const standalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
@@ -1237,6 +1351,8 @@ function Profil({ ctx, keluar, tesNotif, reset }) {
         <span className="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center font-black text-lg">{me.name[0]}</span>
         <div className="flex-1 min-w-0"><div className="font-black truncate">{me.name}</div><div className="text-xs text-slate-500">{ROLES[me.role]} · <span className="font-mono">{me.username}</span></div></div>
       </section>
+      <button onClick={() => setPanduan(!panduan)} className="w-full flex items-center gap-3 bg-white rounded-2xl border border-slate-200 p-4 text-left"><span className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center"><Ico d={I.help} /></span><span className="flex-1"><b className="block text-sm">Panduan penggunaan</b><span className="text-xs text-slate-500">Langkah kerja untuk {ROLES[me.role]}</span></span><Ico d={I.chev} className={`text-slate-400 ${panduan ? 'rotate-90' : ''}`} /></button>
+      {panduan && <Panduan role={me.role} />}
       <button onClick={() => { if (confirm('Keluar dari akun ini?')) keluar(); }} className="w-full py-3 rounded-2xl border border-rose-300 text-rose-700 font-bold text-sm">Keluar</button>
       <Seksi judul="Notifikasi HP">
         <div className="space-y-3 text-sm">
