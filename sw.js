@@ -1,5 +1,5 @@
-/* Kas NVP — service worker: bisa dibuka offline + notifikasi */
-const CACHE = 'kas-nvp-v1';
+/* NVP Operasional — service worker: bisa dibuka offline + notifikasi */
+const CACHE = 'nvp-ops-v2';
 const FILES = ['./', 'index.html', 'app.js', 'styles.css', 'manifest.webmanifest', 'vendor/react.production.min.js', 'vendor/react-dom.production.min.js', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/badge-96.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
@@ -19,6 +19,6 @@ self.addEventListener('notificationclick', (e) => {
 });
 // Disiapkan untuk tahap berikutnya: notifikasi dari server (Web Push) saat aplikasi tertutup
 self.addEventListener('push', (e) => {
-  let d = {}; try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: 'Kas NVP', body: e.data && e.data.text() }; }
-  e.waitUntil(self.registration.showNotification(d.title || 'Kas NVP', { body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', data: { url: d.url || './' } }));
+  let d = {}; try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: 'NVP Operasional', body: e.data && e.data.text() }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'NVP Operasional', { body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', data: { url: d.url || './' } }));
 });

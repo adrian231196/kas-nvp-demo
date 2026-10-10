@@ -1,7 +1,7 @@
 {
-  "name": "Kas NVP — Pengeluaran Dana (Contoh)",
-  "short_name": "Kas NVP",
-  "description": "Pengajuan, persetujuan, dan pentransferan dana PT Nuri Vira Pratama.",
+  "name": "NVP Operasional (Contoh)",
+  "short_name": "NVP Ops",
+  "description": "Pemeriksaan APAR, pekerjaan refilling, pengajuan gaji & pembayaran PT Nuri Vira Pratama.",
   "lang": "id",
   "start_url": "./",
   "scope": "./",
